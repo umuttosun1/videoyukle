@@ -156,12 +156,20 @@ function findIframeUrls(html, pageUrl) {
 function findSubtitles(html, pageUrl) {
   const subs = [];
   const base = new URL(pageUrl);
-  const trackRegex = /<track[^>]+src=["']([^"']+\.vtt)[^"']*["'][^>]*(?:srclang=["']([^"']+)["'])?[^>]*(?:label=["']([^"']+)["'])?/gi;
-  let match;
-  while ((match = trackRegex.exec(html)) !== null) {
-    let url = match[1];
+  // Match full <track> tags then extract attributes individually
+  const tagRegex = /<track[^>]+>/gi;
+  let tagMatch;
+  while ((tagMatch = tagRegex.exec(html)) !== null) {
+    const tag = tagMatch[0];
+    const srcMatch = tag.match(/src=["']([^"']+\.vtt)/i);
+    if (!srcMatch) continue;
+    let url = srcMatch[1];
     if (url.startsWith("/")) url = base.origin + url;
-    subs.push({ url, lang: match[2] || "unknown", label: match[3] || match[2] || "Unknown" });
+    const langMatch = tag.match(/srclang=["']([^"']+)/i);
+    const labelMatch = tag.match(/label=["']([^"']+)/i);
+    const lang = langMatch ? langMatch[1] : "unknown";
+    const label = labelMatch ? labelMatch[1] : lang;
+    subs.push({ url, lang, label });
   }
   return subs;
 }

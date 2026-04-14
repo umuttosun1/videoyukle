@@ -116,6 +116,18 @@
                   <div id="formatList" class="format-list"></div>
                 </div>
 
+                <!-- Audio Track Selection -->
+                <div id="audioTrackSection" class="format-section hidden">
+                  <h3><i class="fas fa-volume-up"></i> Ses Dili</h3>
+                  <div id="audioTrackList" class="format-list"></div>
+                </div>
+
+                <!-- Subtitle Selection -->
+                <div id="subtitleSection" class="format-section hidden">
+                  <h3><i class="fas fa-closed-captioning"></i> Altyazı</h3>
+                  <div id="subtitleList" class="format-list"></div>
+                </div>
+
                 <button id="downloadBtn" class="btn btn-success btn-lg">
                   <i class="fas fa-download"></i>
                   <span>İndir</span>
@@ -126,37 +138,22 @@
         </div>
       </section>
 
-      <!-- Download Progress -->
-      <section id="progressSection" class="section hidden">
-        <div class="container">
-          <div class="progress-card">
-            <div class="progress-header">
-              <i class="fas fa-download fa-bounce"></i>
-              <h3>İndiriliyor...</h3>
-            </div>
-            <div class="progress-bar-wrapper">
-              <div
-                id="progressBar"
-                class="progress-bar"
-                style="width: 0%"
-              ></div>
-            </div>
-            <div class="progress-stats">
-              <span id="progressPercent">%0</span>
-              <span id="progressSpeed"></span>
-              <span id="progressEta"></span>
-            </div>
-            <div id="progressComplete" class="progress-complete hidden">
-              <i class="fas fa-check-circle"></i>
-              <p>İndirme tamamlandı!</p>
-              <button id="saveFileBtn" class="btn btn-success btn-lg">
-                <i class="fas fa-save"></i>
-                <span>Dosyayı Kaydet</span>
-              </button>
-            </div>
-          </div>
+      <!-- Downloads Panel (fixed bottom) -->
+      <div id="downloadsPanel" class="downloads-panel hidden">
+        <div class="downloads-header" id="downloadsHeader">
+          <h3><i class="fas fa-download"></i> İndirmeler (<span id="downloadCount">0</span>)</h3>
+          <button id="toggleDownloadsBtn" class="btn-icon">
+            <i class="fas fa-chevron-down"></i>
+          </button>
         </div>
-      </section>
+        <div id="downloadsList" class="downloads-list"></div>
+      </div>
+
+      <!-- Downloads FAB (floating action button) -->
+      <button id="downloadsFab" class="downloads-fab hidden">
+        <i class="fas fa-download"></i>
+        <span id="downloadsBadge" class="downloads-badge">0</span>
+      </button>
 
       <!-- How to Use -->
       <section id="how-to" class="section how-to-section">

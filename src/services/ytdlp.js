@@ -107,6 +107,9 @@ function getResolvedInfo(url) {
   const resolved = resolveVideo(url);
   const hostname = new URL(url).hostname.replace(/^www\./, "");
 
+  // Get formats and audio tracks from HLS stream
+  const hlsInfo = getHlsFormats(resolved.videoUrl, resolved.referer);
+
   return {
     id: "resolved",
     title: resolved.title || "Video",
@@ -115,27 +118,98 @@ function getResolvedInfo(url) {
     durationFormatted: null,
     uploader: hostname,
     platform: detectPlatform(url),
-    formats: [
-      {
-        formatId: "best",
-        label: "En İyi Kalite (MP4)",
-        quality: "best",
-        ext: "mp4",
-        filesize: null,
-        filesizeBytes: 0,
-        hasVideo: true,
-        hasAudio: true,
-      },
-    ],
+    formats: hlsInfo.formats,
+    audioTracks: hlsInfo.audioTracks,
+    subtitles: resolved.subtitles || [],
     _resolved: resolved,
   };
 }
 
+function getHlsFormats(videoUrl, referer) {
+  const fallback = {
+    formats: [{
+      formatId: "best",
+      label: "En İyi Kalite (MP4)",
+      quality: "best",
+      ext: "mp4",
+      filesize: null,
+      filesizeBytes: 0,
+      hasVideo: true,
+      hasAudio: true,
+    }],
+    audioTracks: [],
+  };
+
+  try {
+    const output = require("child_process").execFileSync(YTDLP_PATH, [
+      "--no-check-certificates",
+      "--no-download",
+      "-F",
+      "--referer", referer || "",
+      ...(FFMPEG_DIR ? ["--ffmpeg-location", FFMPEG_DIR] : []),
+      videoUrl,
+    ], { timeout: 30000, encoding: "utf8" });
+
+    const formats = [];
+    const audioTracks = [];
+
+    for (const line of output.split("\n")) {
+      // Audio tracks: group_closedual-Turkish  mp4 audio only | m3u8 | audio only unknown Turkish
+      if (/audio only/i.test(line) && !/video only/i.test(line)) {
+        const id = line.trim().split(/\s+/)[0];
+        const label = line.replace(/.*audio only\s+unknown\s+/i, "").trim() || id;
+        audioTracks.push({ id, label });
+        continue;
+      }
+
+      // Video formats: 4280  mp4 1920x1080 | ~5.89GiB 4281k m3u8 | avc1.640028 4281k video only
+      const videoMatch = line.match(/^(\S+)\s+\S+\s+(\d+)x(\d+)\s+\|.*?~?([\d.]+\s*\S+iB)?/);
+      if (videoMatch) {
+        const id = videoMatch[1];
+        const width = parseInt(videoMatch[2]);
+        const height = parseInt(videoMatch[3]);
+        const filesize = videoMatch[4]?.trim() || null;
+
+        let quality;
+        if (height >= 2160) quality = "4K";
+        else if (height >= 1440) quality = "1440p";
+        else if (height >= 1080) quality = "1080p";
+        else if (height >= 720) quality = "720p";
+        else if (height >= 480) quality = "480p";
+        else quality = `${height}p`;
+
+        formats.push({
+          formatId: id,
+          label: `${quality} MP4`,
+          quality,
+          ext: "mp4",
+          filesize,
+          filesizeBytes: 0,
+          hasVideo: true,
+          hasAudio: false,
+        });
+      }
+    }
+
+    if (formats.length === 0) return fallback;
+
+    // Sort by resolution descending
+    formats.sort((a, b) => {
+      const order = { "4K": 5, "1440p": 4, "1080p": 3, "720p": 2, "480p": 1 };
+      return (order[b.quality] || 0) - (order[a.quality] || 0);
+    });
+
+    return { formats, audioTracks };
+  } catch {
+    return fallback;
+  }
+}
+
 // ─── Download ───
 
-function startDownload(url, formatId, ext, jobId, onProgress, onComplete, onError) {
+function startDownload(url, formatId, ext, jobId, audioTrackId, subtitleUrl, onProgress, onComplete, onError) {
   if (canResolve(url)) {
-    return startResolvedDownload(url, jobId, onProgress, onComplete, onError);
+    return startResolvedDownload(url, formatId, jobId, audioTrackId, subtitleUrl, onProgress, onComplete, onError);
   }
 
   return startYtdlpDownload(url, formatId, ext, jobId, onProgress, onComplete, onError);
@@ -222,7 +296,7 @@ function startYtdlpDownload(url, formatId, ext, jobId, onProgress, onComplete, o
   return proc;
 }
 
-function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
+function startResolvedDownload(url, formatId, jobId, audioTrackId, subtitleUrl, onProgress, onComplete, onError) {
   let resolved;
   try {
     resolved = resolveVideo(url);
@@ -230,6 +304,10 @@ function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
     onError("Video kaynağı çözümlenemedi: " + err.message);
     return { kill: () => {} };
   }
+
+  // Use user-selected subtitle, or fallback to resolved subtitles
+  const selectedSubUrl = subtitleUrl || null;
+  const fallbackSubs = subtitleUrl ? [] : resolved.subtitles;
 
   {
       const outputPath = path.join(DOWNLOADS_DIR, `${jobId}.%(ext)s`);
@@ -239,6 +317,14 @@ function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
         "--no-check-certificates",
         "--referer", resolved.referer || url,
       ];
+
+      // Format + Audio track selection
+      const videoFmt = (formatId && formatId !== "best") ? formatId : "bestvideo";
+      if (audioTrackId) {
+        args.push("-f", `${videoFmt}+${audioTrackId}`);
+      } else if (formatId && formatId !== "best") {
+        args.push("-f", formatId);
+      }
 
       if (FFMPEG_DIR) {
         args.push("--ffmpeg-location", FFMPEG_DIR);
@@ -277,6 +363,10 @@ function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
         for (const line of data.toString().split("\n")) {
           const progress = parseProgress(line);
           if (progress) onProgress(progress);
+          const destMatch = line.match(/Destination:\s*(.+)/);
+          if (destMatch) lastFilename = destMatch[1].trim();
+          const mergeMatch = line.match(/Merging formats into "(.+?)"/);
+          if (mergeMatch) lastFilename = mergeMatch[1].trim();
         }
       });
 
@@ -284,13 +374,13 @@ function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
         clearTimeout(timeout);
         if (code === 0) {
           if (lastFilename && fs.existsSync(lastFilename)) {
-            maybeEmbedSubtitles(lastFilename, resolved.subtitles, onComplete, onError);
+            maybeEmbedSubtitles(lastFilename, selectedSubUrl, fallbackSubs, onComplete, onError);
           } else {
             const files = fs.readdirSync(DOWNLOADS_DIR);
             const match = files.find((f) => f.startsWith(jobId));
             if (match) {
               const filePath = path.join(DOWNLOADS_DIR, match);
-              maybeEmbedSubtitles(filePath, resolved.subtitles, onComplete, onError);
+              maybeEmbedSubtitles(filePath, selectedSubUrl, fallbackSubs, onComplete, onError);
             } else {
               onError("İndirme tamamlandı ancak dosya bulunamadı.");
             }
@@ -311,16 +401,20 @@ function startResolvedDownload(url, jobId, onProgress, onComplete, onError) {
 
 // ─── Subtitle Embedding ───
 
-function maybeEmbedSubtitles(videoPath, subtitles, onComplete, onError) {
-  if (!FFMPEG_DIR || !subtitles || subtitles.length === 0) {
-    return onComplete(videoPath);
-  }
+function maybeEmbedSubtitles(videoPath, selectedSubUrl, fallbackSubs, onComplete, onError) {
+  if (!FFMPEG_DIR) return onComplete(videoPath);
 
-  // Find Turkish subtitle, or first available
-  const turkishSub = subtitles.find(
-    (s) => s.lang === "tr" || /turkish|türk/i.test(s.label)
-  );
-  const sub = turkishSub || subtitles[0];
+  let sub;
+  if (selectedSubUrl) {
+    // User explicitly selected a subtitle
+    sub = { url: selectedSubUrl, lang: "tur", label: "Altyazi" };
+  } else if (fallbackSubs && fallbackSubs.length > 0) {
+    // Auto-select: prefer Turkish, then first
+    const turkishSub = fallbackSubs.find(
+      (s) => s.lang === "tr" || /turkish|türk/i.test(s.label)
+    );
+    sub = turkishSub || fallbackSubs[0];
+  }
   if (!sub) return onComplete(videoPath);
 
   // Download subtitle
@@ -379,6 +473,7 @@ function maybeEmbedSubtitles(videoPath, subtitles, onComplete, onError) {
 // ─── Parsers ───
 
 function parseProgress(line) {
+  // Standard: [download]  45.2% of  52.00MiB at  2.50MiB/s ETA 00:15
   const match = line.match(
     /\[download\]\s+([\d.]+)%\s+of\s+~?([\d.]+\s*\w+)\s+at\s+([\d.]+\s*\w+\/s)\s+ETA\s+([\d:]+)/
   );
@@ -391,11 +486,34 @@ function parseProgress(line) {
     };
   }
 
-  const completeMatch = line.match(/\[download\]\s+100%\s+of\s+([\d.]+\s*\w+)/);
+  // HLS/fragment: [download]   0.1% of ~ 947.79MiB at  4.84KiB/s ETA Unknown (frag 5/1690)
+  const hlsMatch = line.match(
+    /\[download\]\s+([\d.]+)%\s+of\s+~?([\d.]+\s*\w+)\s+at\s+([\d.]+\s*\w+\/s)\s+ETA\s+(\S+)(?:\s+\(frag\s+(\d+)\/(\d+)\))?/
+  );
+  if (hlsMatch) {
+    const frag = hlsMatch[5] && hlsMatch[6] ? `${hlsMatch[5]}/${hlsMatch[6]}` : null;
+    const eta = hlsMatch[4] === "Unknown" ? (frag ? `frag ${frag}` : "Hesaplanıyor...") : hlsMatch[4];
+    return {
+      percent: parseFloat(hlsMatch[1]),
+      totalSize: hlsMatch[2].trim(),
+      speed: hlsMatch[3].trim(),
+      eta,
+    };
+  }
+
+  // Complete: [download] 100% of 52.00MiB
+  const completeMatch = line.match(/\[download\]\s+100%\s+of\s+~?([\d.]+\s*\w+)/);
   if (completeMatch) {
     return { percent: 100, totalSize: completeMatch[1].trim(), speed: null, eta: "00:00" };
   }
 
+  // HLS downloading: [hlsnative] Total fragments: 1690
+  const fragTotal = line.match(/Total fragments:\s+(\d+)/);
+  if (fragTotal) {
+    return { percent: 0, totalSize: `${fragTotal[1]} fragment`, speed: null, eta: "Başlatılıyor..." };
+  }
+
+  // Merger
   if (line.includes("[Merger]") || line.includes("Merging formats")) {
     return { percent: 99, totalSize: null, speed: null, eta: "Birleştiriliyor..." };
   }

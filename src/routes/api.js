@@ -16,17 +16,13 @@ setInterval(
     const now = Date.now();
     for (const [jobId, job] of jobs) {
       const age = now - job.createdAt;
-      // Remove completed jobs after 10 min, failed after 5 min
-      const maxAge = job.status === "complete" ? 10 * 60 * 1000 : 5 * 60 * 1000;
+      // Remove completed jobs after 1 hour, failed after 10 min
+      const maxAge = job.status === "complete" ? 60 * 60 * 1000 : 10 * 60 * 1000;
       if (
         (job.status === "complete" || job.status === "error") &&
         age > maxAge
       ) {
-        if (job.filePath && fs.existsSync(job.filePath)) {
-          try {
-            fs.unlinkSync(job.filePath);
-          } catch {}
-        }
+        // Sadece job kaydını sil, dosyayı silme
         jobs.delete(jobId);
       }
       // Kill stuck downloads after 35 min
@@ -56,11 +52,12 @@ router.post("/info", validateUrl, async (req, res) => {
 
 // POST /api/download - Start a download
 router.post("/download", validateUrl, (req, res) => {
-  const { url, formatId, ext } = req.body;
+  const { url, formatId, ext, audioTrackId, subtitleUrl, title } = req.body;
   const jobId = uuidv4();
 
   const job = {
     id: jobId,
+    title: title || "Video",
     status: "starting",
     percent: 0,
     speed: null,
@@ -79,6 +76,8 @@ router.post("/download", validateUrl, (req, res) => {
     formatId || "best",
     ext || "mp4",
     jobId,
+    audioTrackId || null,
+    subtitleUrl || null,
     // onProgress
     (progress) => {
       job.status = "downloading";
@@ -110,6 +109,45 @@ router.post("/download", validateUrl, (req, res) => {
   res.json({ success: true, jobId });
 });
 
+// POST /api/cancel/:jobId - Cancel/stop a download
+router.post("/cancel/:jobId", (req, res) => {
+  const job = jobs.get(req.params.jobId);
+  if (!job) {
+    return res.status(404).json({ success: false, error: "İş bulunamadı." });
+  }
+  if (job.status !== "downloading" && job.status !== "starting") {
+    return res.json({ success: true, message: "İndirme zaten durmuş." });
+  }
+
+  // Kill the yt-dlp process
+  if (job.process) {
+    try {
+      job.process.kill("SIGTERM");
+    } catch {}
+  }
+
+  job.status = "cancelled";
+  job.error = "İndirme kullanıcı tarafından durduruldu.";
+  notifyClients(job);
+
+  // Clean up partial files
+  if (job.filePath && fs.existsSync(job.filePath)) {
+    try { fs.unlinkSync(job.filePath); } catch {}
+  }
+  // Clean up partial yt-dlp files
+  const downloadsDir = path.join(__dirname, "..", "..", "downloads");
+  try {
+    const files = fs.readdirSync(downloadsDir);
+    for (const f of files) {
+      if (f.startsWith(req.params.jobId)) {
+        try { fs.unlinkSync(path.join(downloadsDir, f)); } catch {}
+      }
+    }
+  } catch {}
+
+  res.json({ success: true });
+});
+
 // GET /api/progress/:jobId - SSE progress stream
 router.get("/progress/:jobId", (req, res) => {
   const job = jobs.get(req.params.jobId);
@@ -137,36 +175,58 @@ router.get("/progress/:jobId", (req, res) => {
 
 // GET /api/download/:jobId/file - Download the file
 router.get("/download/:jobId/file", (req, res) => {
-  const job = jobs.get(req.params.jobId);
-  if (!job) {
-    return res.status(404).json({ success: false, error: "İş bulunamadı." });
-  }
-  if (job.status !== "complete" || !job.filePath) {
-    return res
-      .status(400)
-      .json({ success: false, error: "Dosya henüz hazır değil." });
-  }
-  if (!fs.existsSync(job.filePath)) {
-    return res
-      .status(404)
-      .json({
-        success: false,
-        error: "Dosya bulunamadı. Süresi dolmuş olabilir.",
-      });
+  const jobId = req.params.jobId;
+  const job = jobs.get(jobId);
+
+  let filePath = null;
+  let filename = null;
+
+  if (job && job.status === "complete" && job.filePath) {
+    // Job still in memory
+    filePath = job.filePath;
+    filename = job.filename;
+  } else {
+    // Job expired from memory — search downloads folder by jobId
+    const downloadsDir = path.join(__dirname, "..", "..", "downloads");
+    try {
+      const files = fs.readdirSync(downloadsDir);
+      const match = files.find((f) => f.startsWith(jobId) && !f.endsWith(".vtt"));
+      if (match) {
+        filePath = path.join(downloadsDir, match);
+        filename = match;
+      }
+    } catch {}
   }
 
-  const filename = job.filename || "video.mp4";
+  if (!filePath || !fs.existsSync(filePath)) {
+    return res.status(404).json({
+      success: false,
+      error: "Dosya bulunamadı. Süresi dolmuş olabilir.",
+    });
+  }
+
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="${encodeURIComponent(filename)}"`,
+    `attachment; filename="${encodeURIComponent(filename || "video.mp4")}"`,
   );
   res.setHeader("Content-Type", "application/octet-stream");
 
-  const stat = fs.statSync(job.filePath);
+  const stat = fs.statSync(filePath);
   res.setHeader("Content-Length", stat.size);
 
-  const stream = fs.createReadStream(job.filePath);
+  const stream = fs.createReadStream(filePath);
   stream.pipe(res);
+});
+
+// GET /api/jobs - Get multiple job statuses (for reconnection after page refresh)
+router.get("/jobs", (req, res) => {
+  const ids = (req.query.ids || "").split(",").filter(Boolean);
+  const result = {};
+  for (const id of ids) {
+    const job = jobs.get(id);
+    result[id] = job ? getJobData(job) : null;
+  }
+  res.json({ jobs: result });
 });
 
 function getJobData(job) {
@@ -177,6 +237,7 @@ function getJobData(job) {
     eta: job.eta,
     totalSize: job.totalSize,
     filename: job.filename,
+    title: job.title,
     error: job.error,
   };
 }
@@ -189,8 +250,8 @@ function notifyClients(job) {
       client.write(message);
     } catch {}
   }
-  // Close SSE connections on completion or error
-  if (job.status === "complete" || job.status === "error") {
+  // Close SSE connections on completion, error, or cancel
+  if (job.status === "complete" || job.status === "error" || job.status === "cancelled") {
     for (const client of job.sseClients) {
       try {
         client.end();
