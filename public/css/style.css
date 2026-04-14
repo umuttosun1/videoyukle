@@ -37,7 +37,11 @@ html {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
@@ -188,8 +192,16 @@ img {
   padding: 140px 0 60px;
   text-align: center;
   background:
-    radial-gradient(ellipse at top, rgba(83, 52, 131, 0.15) 0%, transparent 60%),
-    radial-gradient(ellipse at bottom right, rgba(233, 69, 96, 0.08) 0%, transparent 50%);
+    radial-gradient(
+      ellipse at top,
+      rgba(83, 52, 131, 0.15) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse at bottom right,
+      rgba(233, 69, 96, 0.08) 0%,
+      transparent 50%
+    );
 }
 
 .hero h1 {
@@ -282,11 +294,21 @@ img {
   font-size: 0.85rem;
 }
 
-.platform-icons .fa-youtube { color: #ff0000; }
-.platform-icons .fa-instagram { color: #e4405f; }
-.platform-icons .fa-tiktok { color: #69c9d0; }
-.platform-icons .fa-twitter { color: #1da1f2; }
-.platform-icons .fa-facebook { color: #1877f2; }
+.platform-icons .fa-youtube {
+  color: #ff0000;
+}
+.platform-icons .fa-instagram {
+  color: #e4405f;
+}
+.platform-icons .fa-tiktok {
+  color: #69c9d0;
+}
+.platform-icons .fa-twitter {
+  color: #1da1f2;
+}
+.platform-icons .fa-facebook {
+  color: #1877f2;
+}
 
 /* ===== Sections ===== */
 .section {
@@ -321,7 +343,9 @@ img {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-card p {
@@ -540,7 +564,7 @@ img {
 }
 
 .progress-bar::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -556,8 +580,12 @@ img {
 }
 
 @keyframes shimmer {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .progress-stats {
@@ -698,15 +726,33 @@ img {
 }
 
 /* Specific platform icon colors on hover */
-.platform-card:hover .fa-youtube { color: #ff0000; }
-.platform-card:hover .fa-instagram { color: #e4405f; }
-.platform-card:hover .fa-tiktok { color: #69c9d0; }
-.platform-card:hover .fa-twitter { color: #1da1f2; }
-.platform-card:hover .fa-facebook { color: #1877f2; }
-.platform-card:hover .fa-vimeo-v { color: #1ab7ea; }
-.platform-card:hover .fa-reddit-alien { color: #ff4500; }
-.platform-card:hover .fa-twitch { color: #9146ff; }
-.platform-card:hover .fa-dailymotion { color: #0066dc; }
+.platform-card:hover .fa-youtube {
+  color: #ff0000;
+}
+.platform-card:hover .fa-instagram {
+  color: #e4405f;
+}
+.platform-card:hover .fa-tiktok {
+  color: #69c9d0;
+}
+.platform-card:hover .fa-twitter {
+  color: #1da1f2;
+}
+.platform-card:hover .fa-facebook {
+  color: #1877f2;
+}
+.platform-card:hover .fa-vimeo-v {
+  color: #1ab7ea;
+}
+.platform-card:hover .fa-reddit-alien {
+  color: #ff4500;
+}
+.platform-card:hover .fa-twitch {
+  color: #9146ff;
+}
+.platform-card:hover .fa-dailymotion {
+  color: #0066dc;
+}
 
 /* ===== Footer ===== */
 .footer {
