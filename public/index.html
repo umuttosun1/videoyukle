@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VideoYukle - Video İndirici</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="container header-inner">
+        <a href="#" class="logo">
+          <i class="fas fa-film"></i>
+          <span>Video<strong>Yukle</strong></span>
+        </a>
+        <nav>
+          <a href="#hero">Ana Sayfa</a>
+          <a href="#how-to">Nasıl Kullanılır</a>
+          <a href="#platforms">Desteklenen Siteler</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section id="hero" class="hero">
+        <div class="container">
+          <h1>Video <span class="gradient-text">İndirici</span></h1>
+          <p class="hero-subtitle">
+            YouTube, Instagram, TikTok ve daha fazlasından video indirin
+          </p>
+
+          <!-- URL Input -->
+          <div class="url-input-group">
+            <div class="input-wrapper">
+              <i class="fas fa-link input-icon"></i>
+              <input
+                type="text"
+                id="urlInput"
+                placeholder="Video URL'sini yapıştırın..."
+                autocomplete="off"
+              />
+              <button id="pasteBtn" class="paste-btn" title="Yapıştır">
+                <i class="fas fa-paste"></i>
+              </button>
+            </div>
+            <button id="fetchBtn" class="btn btn-primary">
+              <i class="fas fa-search"></i>
+              <span>Bilgi Getir</span>
+            </button>
+          </div>
+
+          <!-- Platform Icons -->
+          <div class="platform-icons">
+            <span><i class="fab fa-youtube"></i> YouTube</span>
+            <span><i class="fab fa-instagram"></i> Instagram</span>
+            <span><i class="fab fa-tiktok"></i> TikTok</span>
+            <span><i class="fab fa-twitter"></i> Twitter/X</span>
+            <span><i class="fab fa-facebook"></i> Facebook</span>
+            <span><i class="fas fa-globe"></i> Diğer</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Loading State -->
+      <section id="loadingSection" class="section hidden">
+        <div class="container">
+          <div class="loading-card">
+            <div class="spinner"></div>
+            <p>Video bilgisi getiriliyor...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Error State -->
+      <section id="errorSection" class="section hidden">
+        <div class="container">
+          <div class="error-card">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p id="errorMessage">Bir hata oluştu.</p>
+            <button id="errorRetryBtn" class="btn btn-outline">Tekrar Dene</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Video Info -->
+      <section id="videoSection" class="section hidden">
+        <div class="container">
+          <div class="video-card">
+            <div class="video-card-inner">
+              <div class="video-thumbnail">
+                <img id="videoThumbnail" src="" alt="Video Thumbnail" />
+                <span id="videoDuration" class="duration-badge"></span>
+              </div>
+              <div class="video-details">
+                <span id="videoPlatform" class="platform-badge"></span>
+                <h2 id="videoTitle"></h2>
+                <p id="videoUploader" class="uploader"></p>
+
+                <!-- Format Selection -->
+                <div class="format-section">
+                  <h3><i class="fas fa-sliders-h"></i> Format Seçin</h3>
+                  <div id="formatList" class="format-list"></div>
+                </div>
+
+                <button id="downloadBtn" class="btn btn-success btn-lg">
+                  <i class="fas fa-download"></i>
+                  <span>İndir</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Download Progress -->
+      <section id="progressSection" class="section hidden">
+        <div class="container">
+          <div class="progress-card">
+            <div class="progress-header">
+              <i class="fas fa-download fa-bounce"></i>
+              <h3>İndiriliyor...</h3>
+            </div>
+            <div class="progress-bar-wrapper">
+              <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <div class="progress-stats">
+              <span id="progressPercent">%0</span>
+              <span id="progressSpeed"></span>
+              <span id="progressEta"></span>
+            </div>
+            <div id="progressComplete" class="progress-complete hidden">
+              <i class="fas fa-check-circle"></i>
+              <p>İndirme tamamlandı!</p>
+              <button id="saveFileBtn" class="btn btn-success btn-lg">
+                <i class="fas fa-save"></i>
+                <span>Dosyayı Kaydet</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- How to Use -->
+      <section id="how-to" class="section how-to-section">
+        <div class="container">
+          <h2 class="section-title">Nasıl <span class="gradient-text">Kullanılır?</span></h2>
+          <div class="steps-grid">
+            <div class="step-card">
+              <div class="step-number">1</div>
+              <div class="step-icon"><i class="fas fa-copy"></i></div>
+              <h3>URL Kopyala</h3>
+              <p>İndirmek istediğiniz videonun bağlantısını kopyalayın</p>
+            </div>
+            <div class="step-card">
+              <div class="step-number">2</div>
+              <div class="step-icon"><i class="fas fa-paste"></i></div>
+              <h3>Yapıştır</h3>
+              <p>Bağlantıyı yukarıdaki alana yapıştırın ve bilgi getir'e tıklayın</p>
+            </div>
+            <div class="step-card">
+              <div class="step-number">3</div>
+              <div class="step-icon"><i class="fas fa-download"></i></div>
+              <h3>İndir</h3>
+              <p>Kalite seçin ve indirme butonuna tıklayın</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Supported Platforms -->
+      <section id="platforms" class="section platforms-section">
+        <div class="container">
+          <h2 class="section-title">Desteklenen <span class="gradient-text">Platformlar</span></h2>
+          <div class="platforms-grid">
+            <div class="platform-card">
+              <i class="fab fa-youtube"></i>
+              <span>YouTube</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-instagram"></i>
+              <span>Instagram</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-tiktok"></i>
+              <span>TikTok</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-twitter"></i>
+              <span>Twitter/X</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-facebook"></i>
+              <span>Facebook</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-dailymotion"></i>
+              <span>Dailymotion</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-vimeo-v"></i>
+              <span>Vimeo</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-reddit-alien"></i>
+              <span>Reddit</span>
+            </div>
+            <div class="platform-card">
+              <i class="fab fa-twitch"></i>
+              <span>Twitch</span>
+            </div>
+            <div class="platform-card">
+              <i class="fas fa-film"></i>
+              <span>Film/Dizi Siteleri</span>
+            </div>
+            <div class="platform-card">
+              <i class="fas fa-globe"></i>
+              <span>1000+ Site</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2026 VideoYukle - Kişisel kullanım amaçlıdır.</p>
+      </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="js/app.js"></script>
+  </body>
+</html>

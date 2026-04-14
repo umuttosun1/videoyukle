@@ -1,0 +1,23 @@
+{
+  "name": "videoyukle",
+  "version": "1.0.0",
+  "description": "Video indirme uygulamasi - YouTube, Instagram, TikTok ve daha fazlasindan video indirin",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "setup": "bash scripts/setup.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:31903/git/umuttosun1/basic-hotel"
+  },
+  "keywords": ["video", "download", "yt-dlp"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "uuid": "^13.0.0"
+  }
+}
